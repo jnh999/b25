@@ -1,0 +1,43 @@
+/* Bitcoin Design System Styles */
+
+/* Monospace font configuration */
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: 0.05em;
+}
+
+/* Bitcoin address specific styles */
+.bitcoin-address {
+  word-break: break-all;
+  font-size: 1rem;
+  line-height: 1.625;
+}
+
+/* Focus states for interactive elements */
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #f97316;
+  border-radius: 0.25rem;
+}
+
+/* Secret field styles */
+.secret-field {
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  font-size: 1rem;
+  line-height: 1.625;
+}
+
+/* QR code container */
+.qr-container {
+  position: relative;
+  border-radius: 0.5rem;
+} 
+
+.italic {
+  font-style: italic;
+}

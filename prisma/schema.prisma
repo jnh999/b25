@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  USER
+  ISSUER
+}
+
+enum Region {
+  US
+  EU
+}
+
+enum StripePaymentType {
+  US_BANK_ACCOUNT
+  SEPA_DEBIT
+  US_CARD
+}
+
+model User {
+  id                    String             @id @default(cuid())
+  // POSTHACK: First and last name
+  name                  String
+  username              String             @unique
+  email                 String             @unique
+  password              String
+  role                  UserType           @default(USER)
+  isPublic              Boolean            @default(true)
+  registeredAt          DateTime           @default(now())
+  region                Region?
+  sparkWallet           SparkWallet?
+  stripeCustomerId      String?
+  stripePaymentId       String?
+  stripePaymentType     StripePaymentType?
+  // stripePaymentMethods StripePaymentMethod[]
+  // treasuryTransaction  TreasuryTransaction[]
+  profilePicUrl         String?
+  xHandle               String?
+  isXVerified           Boolean            @default(false)
+  websiteUrl            String?
+  isWebsiteVerified     Boolean            @default(false)
+  notificationThreshold Float?             @default(0)
+  emailVerified         DateTime?
+  image                 String?
+  accounts              Account[]
+  sessions              Session[]
+  requests              Request[]          @relation("RequestingUser")
+
+  requestingPaymentRequest PaymentRequest[] @relation(name: "requestingPaymentRequests")
+  receivingPaymentRequest  PaymentRequest[] @relation(name: "receivingPaymentRequests")
+  requestingTransfers      Transfer[]       @relation(name: "requestingTransfers")
+  receivingTransfers       Transfer[]       @relation(name: "receivingTransfers")
+  sparkIssuerId            String?
+  Request                  Request[]
+}
+
+model SparkWallet {
+  id        String  @id @default(cuid())
+  mnemonic  String
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String  @unique
+  address   String  @unique
+  validated Boolean @default(false)
+}
+
+enum Currency {
+  USD
+  EUR
+  BTC
+}
+
+// Tracks USD/EUR treasury withdrawals and deposits
+// These will auto-mint and auto-burn Spark USD/EUR tokens
+enum TreasuryTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+enum TreasurySource {
+  STRIPE
+  CRYPTO
+}
+
+// model TreasuryTransaction {
+//   id              String                  @id @default(cuid())
+//   treasury        Currency
+//   amount          Int // cents
+//   createdAt       DateTime                @default(now())
+//   transactionType TreasuryTransactionType
+//   user            User                    @relation(fields: [userId], references: [id])
+//   userId          String
+//   sparkTxId       String? // Burn tx ID (if withdrawal) or mint tx ID (if deposit)
+//   source          TreasurySource
+// }
+
+model SparkIssuer {
+  id                String  @id @default(cuid())
+  mnemonic          String  @default("")
+  tokenName         String  @unique
+  tokenTicker       String  @unique
+  tokenPubKey       String? @unique
+  announcementTx    String? @unique
+  decimals          Int     @default(6)
+  maxSupply         BigInt  @default(0)
+  isFreezable       Boolean @default(true)
+  xHandle           String?
+  isXVerified       Boolean @default(false)
+  websiteUrl        String?
+  isWebsiteVerified Boolean @default(false)
+  iconUrl           String?
+}
+
+enum PaymentRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+model PaymentRequest {
+  id               String               @id @default(cuid())
+  status           PaymentRequestStatus @default(PENDING)
+  requestingUser   User                 @relation(name: "requestingPaymentRequests", fields: [requestingUserId], references: [id])
+  requestingUserId String
+  receivingUser    User                 @relation(name: "receivingPaymentRequests", fields: [receivingUserId], references: [id])
+  receivingUserId  String
+  currency         Currency
+  amount           Int
+  memo             String?
+  createdAt        DateTime             @default(now())
+}
+
+enum TransferStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Transfer {
+  id                    String         @id @default(cuid())
+  status                TransferStatus @default(PENDING)
+  requestingUser        User           @relation(name: "requestingTransfers", fields: [requestingUserId], references: [id])
+  requestingUserId      String
+  receivingUser         User?          @relation(name: "receivingTransfers", fields: [receivingUserId], references: [id])
+  receivingUserId       String?
+  receivingSparkAddress String?
+  receivingCurrency     Currency
+  receivingAmount       Int
+  memo                  String?
+  destinationCurrency   Currency
+  destinationAmount     Int
+  createdAt             DateTime       @default(now())
+}
+
+model Request {
+  id                 String   @id @default(cuid())
+  requestingUserId   String
+  requestingAmount   Int
+  requestingCurrency String
+  memo               String?
+  createdAt          DateTime @default(now())
+  requestingUser     User     @relation("RequestingUser", fields: [requestingUserId], references: [id])
+  User               User?    @relation(fields: [userId], references: [id])
+  userId             String?
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
